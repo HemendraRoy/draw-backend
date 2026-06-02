@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import roomManager from "../rooms/RoomManager";
+import gameManager from "../game/GameManager";
 
 export default function registerGameSocket(
   io: Server
@@ -152,6 +153,88 @@ export default function registerGameSocket(
         );
       }
     );
+
+    // START GAME
+socket.on(
+  "start-game",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) {
+      socket.emit(
+        "game-error",
+        "Room not found"
+      );
+      return;
+    }
+
+    if (
+      !roomManager.isHolder(
+        roomId,
+        socket.id
+      )
+    ) {
+      socket.emit(
+        "game-error",
+        "Only holder can start"
+      );
+      return;
+    }
+
+    const result =
+      gameManager.startGame(
+        room
+      );
+
+    if (!result.success) {
+      socket.emit(
+        "game-error",
+        result.message
+      );
+      return;
+    }
+
+    io.to(roomId).emit(
+      "game-started",
+      {
+        round:
+          room.game
+            .currentRound
+      }
+    );
+
+    if (
+      result.drawer
+    ) {
+      const drawerSocket =
+        result.drawer
+          .socketId;
+
+      if (drawerSocket) {
+        io.to(
+          drawerSocket
+        ).emit(
+          "choose-word",
+          {
+            choices:
+              result.choices
+          }
+        );
+      }
+
+      io.to(roomId).emit(
+        "drawer-update",
+        {
+          drawer:
+            result.drawer.name
+        }
+      );
+    }
+  }
+);
 
     // DISCONNECT
     socket.on(

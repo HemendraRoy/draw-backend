@@ -34,11 +34,26 @@ class RoomManager {
     };
 
     const room: Room = {
-      roomId,
-      holderId: player.id,
-      players: [player],
-      bannedPlayers: []
-    };
+  roomId,
+  holderId: player.id,
+  players: [player],
+  bannedPlayers: [],
+
+  game: {
+    started: false,
+    currentRound: 1,
+    phase: "WAITING",
+
+    currentDrawerId: null,
+
+    playersWhoDrewThisRound: [],
+
+    word: null,
+    wordChoices: [],
+
+    guessedPlayers: []
+  }
+};
 
     this.rooms.set(roomId, room);
 
