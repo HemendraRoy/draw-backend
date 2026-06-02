@@ -28,6 +28,10 @@ export interface GameState {
 
   guessedPlayers: string[];
 
+  chooseEndsAt?: number;
+  drawEndsAt?: number;
+  resultEndsAt?: number;
+
   chooseTimer?: NodeJS.Timeout;
   drawTimer?: NodeJS.Timeout;
   resultTimer?: NodeJS.Timeout;

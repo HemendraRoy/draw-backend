@@ -28,7 +28,6 @@ class GameManager {
 
     room.game.started = true;
     room.game.currentRound = 1;
-    room.game.phase = "CHOOSING";
 
     return this.nextDrawer(
       room
@@ -37,13 +36,7 @@ class GameManager {
 
   nextDrawer(
     room: Room
-  ): {
-    success: boolean;
-    message?: string;
-    gameEnded?: boolean;
-    drawer?: any;
-    choices?: string[];
-  } {
+  ): any {
     const connected =
       room.players.filter(
         p => p.connected
@@ -111,6 +104,43 @@ class GameManager {
       choices:
         room.game.wordChoices
     };
+  }
+
+  chooseWord(
+    room: Room,
+    word: string
+  ) {
+    room.game.word = word;
+
+    room.game.phase =
+      "DRAWING";
+
+    room.game.guessedPlayers =
+      [];
+
+    return {
+      success: true
+    };
+  }
+
+  autoChooseWord(
+    room: Room
+  ) {
+    const choices =
+      room.game.wordChoices;
+
+    const random =
+      choices[
+        Math.floor(
+          Math.random() *
+            choices.length
+        )
+      ];
+
+    return this.chooseWord(
+      room,
+      random
+    );
   }
 }
 

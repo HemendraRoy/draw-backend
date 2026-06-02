@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import roomManager from "../rooms/RoomManager";
 import gameManager from "../game/GameManager";
 
+
 export default function registerGameSocket(
   io: Server
 ) {
@@ -154,7 +155,7 @@ export default function registerGameSocket(
       }
     );
 
-    // START GAME
+// START GAME
 socket.on(
   "start-game",
   ({ roomId }) => {
@@ -220,7 +221,8 @@ socket.on(
           "choose-word",
           {
             choices:
-              result.choices
+              result.choices,
+            time: 10
           }
         );
       }
@@ -232,10 +234,82 @@ socket.on(
             result.drawer.name
         }
       );
+
+      room.game.chooseEndsAt =
+        Date.now() + 10000;
+
+      room.game.chooseTimer =
+        setTimeout(() => {
+          gameManager.autoChooseWord(
+            room
+          );
+
+          io.to(roomId).emit(
+            "drawing-started",
+            {
+              duration: 75
+            }
+          );
+
+          startDrawTimer(
+            io,
+            room
+          );
+        }, 10000);
     }
   }
 );
+// WORD CHOSEN
+socket.on(
+  "choose-word",
+  ({
+    roomId,
+    word
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
 
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    clearTimeout(
+      room.game.chooseTimer
+    );
+
+    gameManager.chooseWord(
+      room,
+      word
+    );
+
+    io.to(roomId).emit(
+      "drawing-started",
+      {
+        duration: 75
+      }
+    );
+
+    startDrawTimer(
+      io,
+      room
+    );
+  }
+);
     // DISCONNECT
     socket.on(
       "disconnect",
@@ -270,4 +344,81 @@ socket.on(
       }
     );
   });
+}
+
+function startDrawTimer(
+  io: Server,
+  room: any
+) {
+  room.game.drawEndsAt =
+    Date.now() + 75000;
+
+  room.game.drawTimer =
+    setTimeout(() => {
+      io.to(
+        room.roomId
+      ).emit(
+        "turn-ended",
+        {
+          word:
+            room.game.word
+        }
+      );
+
+      room.game.phase =
+        "RESULT";
+
+      room.game.resultTimer =
+        setTimeout(() => {
+          const result =
+            gameManager.nextDrawer(
+              room
+            );
+
+          if (
+            result.gameEnded
+          ) {
+            io.to(
+              room.roomId
+            ).emit(
+              "game-ended"
+            );
+            return;
+          }
+
+          if (
+            result.drawer
+          ) {
+            const drawerSocket =
+              result.drawer
+                .socketId;
+
+            if (
+              drawerSocket
+            ) {
+              io.to(
+                drawerSocket
+              ).emit(
+                "choose-word",
+                {
+                  choices:
+                    result.choices,
+                  time: 10
+                }
+              );
+            }
+
+            io.to(
+              room.roomId
+            ).emit(
+              "drawer-update",
+              {
+                drawer:
+                  result.drawer
+                    .name
+              }
+            );
+          }
+        }, 5000);
+    }, 75000);
 }
