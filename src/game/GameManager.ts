@@ -142,6 +142,37 @@ class GameManager {
       random
     );
   }
+
+  resetTurn(
+    room: Room
+  ) {
+    clearTimeout(
+      room.game.chooseTimer
+    );
+
+    clearTimeout(
+      room.game.drawTimer
+    );
+
+    clearTimeout(
+      room.game.resultTimer
+    );
+
+    room.game.word = null;
+    room.game.wordChoices =
+      [];
+    room.game.guessedPlayers =
+      [];
+
+    room.game.chooseEndsAt =
+      undefined;
+
+    room.game.drawEndsAt =
+      undefined;
+
+    room.game.resultEndsAt =
+      undefined;
+  }
 }
 
 export default new GameManager();

@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import roomManager from "../rooms/RoomManager";
 import gameManager from "../game/GameManager";
-
+import { Room } from "../types/game";
 
 export default function registerGameSocket(
   io: Server
@@ -155,161 +155,154 @@ export default function registerGameSocket(
       }
     );
 
-// START GAME
-socket.on(
-  "start-game",
-  ({ roomId }) => {
-    const room =
-      roomManager.getRoom(
-        roomId
-      );
+    // START GAME
+    socket.on(
+      "start-game",
+      ({ roomId }) => {
+        const room =
+          roomManager.getRoom(
+            roomId
+          );
 
-    if (!room) {
-      socket.emit(
-        "game-error",
-        "Room not found"
-      );
-      return;
-    }
+        if (!room) {
+          socket.emit(
+            "game-error",
+            "Room not found"
+          );
+          return;
+        }
 
-    if (
-      !roomManager.isHolder(
-        roomId,
-        socket.id
-      )
-    ) {
-      socket.emit(
-        "game-error",
-        "Only holder can start"
-      );
-      return;
-    }
+        if (
+          !roomManager.isHolder(
+            roomId,
+            socket.id
+          )
+        ) {
+          socket.emit(
+            "game-error",
+            "Only holder can start"
+          );
+          return;
+        }
 
-    const result =
-      gameManager.startGame(
-        room
-      );
+        const result =
+          gameManager.startGame(
+            room
+          );
 
-    if (!result.success) {
-      socket.emit(
-        "game-error",
-        result.message
-      );
-      return;
-    }
+        if (!result.success) {
+          socket.emit(
+            "game-error",
+            result.message
+          );
+          return;
+        }
 
-    io.to(roomId).emit(
-      "game-started",
-      {
-        round:
-          room.game
-            .currentRound
-      }
-    );
-
-    if (
-      result.drawer
-    ) {
-      const drawerSocket =
-        result.drawer
-          .socketId;
-
-      if (drawerSocket) {
-        io.to(
-          drawerSocket
-        ).emit(
-          "choose-word",
+        io.to(roomId).emit(
+          "game-started",
           {
-            choices:
-              result.choices,
-            time: 10
+            round:
+              room.game
+                .currentRound
           }
         );
-      }
 
-      io.to(roomId).emit(
-        "drawer-update",
-        {
-          drawer:
-            result.drawer.name
+        startChoosePhase(
+          io,
+          room,
+          result
+        );
+      }
+    );
+
+    // CHOOSE WORD
+    socket.on(
+      "choose-word",
+      ({
+        roomId,
+        word
+      }) => {
+        const room =
+          roomManager.getRoom(
+            roomId
+          );
+
+        if (!room) return;
+
+        const drawer =
+          room.players.find(
+            p =>
+              p.id ===
+              room.game
+                .currentDrawerId
+          );
+
+        if (
+          drawer?.socketId !==
+          socket.id
+        ) {
+          return;
         }
-      );
 
-      room.game.chooseEndsAt =
-        Date.now() + 10000;
+        clearTimeout(
+          room.game.chooseTimer
+        );
 
-      room.game.chooseTimer =
-        setTimeout(() => {
-          gameManager.autoChooseWord(
-            room
-          );
+        gameManager.chooseWord(
+          room,
+          word
+        );
 
-          io.to(roomId).emit(
-            "drawing-started",
-            {
-              duration: 75
-            }
-          );
+        io.to(roomId).emit(
+          "drawing-started",
+          {
+            duration: 75
+          }
+        );
 
-          startDrawTimer(
-            io,
-            room
-          );
-        }, 10000);
-    }
-  }
-);
-// WORD CHOSEN
-socket.on(
-  "choose-word",
-  ({
-    roomId,
-    word
-  }) => {
-    const room =
-      roomManager.getRoom(
-        roomId
-      );
-
-    if (!room) return;
-
-    const drawer =
-      room.players.find(
-        p =>
-          p.id ===
-          room.game
-            .currentDrawerId
-      );
-
-    if (
-      drawer?.socketId !==
-      socket.id
-    ) {
-      return;
-    }
-
-    clearTimeout(
-      room.game.chooseTimer
-    );
-
-    gameManager.chooseWord(
-      room,
-      word
-    );
-
-    io.to(roomId).emit(
-      "drawing-started",
-      {
-        duration: 75
+        startDrawTimer(
+          io,
+          room
+        );
       }
     );
 
-    startDrawTimer(
-      io,
-      room
+    // DRAW EVENT
+    socket.on(
+      "draw-event",
+      ({
+        roomId,
+        data
+      }) => {
+        const room =
+          roomManager.getRoom(
+            roomId
+          );
+
+        if (!room) return;
+
+        const drawer =
+          room.players.find(
+            p =>
+              p.id ===
+              room.game
+                .currentDrawerId
+          );
+
+        if (
+          drawer?.socketId !==
+          socket.id
+        ) {
+          return;
+        }
+
+        socket.to(roomId).emit(
+          "draw-event",
+          data
+        );
+      }
     );
-  }
-);
+
     // DISCONNECT
     socket.on(
       "disconnect",
@@ -323,38 +316,210 @@ socket.on(
           return;
         }
 
-        const updatedRoom =
-          room;
+        const disconnected =
+          room.players.find(
+            p =>
+              !p.connected
+          );
+
+        // drawer disconnected
+        if (
+          disconnected?.id ===
+            room.game
+              .currentDrawerId &&
+          room.game.phase ===
+            "DRAWING"
+        ) {
+          clearTimeout(
+            room.game.drawTimer
+          );
+
+          io.to(
+            room.roomId
+          ).emit(
+            "drawer-skipped"
+          );
+
+          room.game.phase =
+            "RESULT";
+
+          room.game.resultTimer =
+            setTimeout(() => {
+              gameManager.resetTurn(
+                room
+              );
+
+              const result =
+                gameManager.nextDrawer(
+                  room
+                );
+
+              if (
+                result.gameEnded
+              ) {
+                io.to(
+                  room.roomId
+                ).emit(
+                  "game-ended"
+                );
+                return;
+              }
+
+              startChoosePhase(
+                io,
+                room,
+                result
+              );
+            }, 5000);
+        }
 
         io.to(
-          updatedRoom.roomId
+          room.roomId
         ).emit(
           "players-update",
           roomManager.getConnectedPlayers(
-            updatedRoom.roomId
+            room.roomId
           )
         );
 
         io.to(
-          updatedRoom.roomId
+          room.roomId
         ).emit(
           "holder-update",
-          updatedRoom.holderId
+          room.holderId
         );
       }
     );
   });
 }
 
+function startChoosePhase(
+  io: Server,
+  room: Room,
+  result: any
+) {
+  if (
+    !result.drawer
+  ) {
+    return;
+  }
+
+  const drawerSocket =
+    result.drawer.socketId;
+
+  io.to(
+    room.roomId
+  ).emit(
+    "drawer-update",
+    {
+      drawer:
+        result.drawer.name
+    }
+  );
+
+  room.game.chooseEndsAt =
+    Date.now() + 10000;
+
+  room.game.chooseTimer =
+    setTimeout(() => {
+      gameManager.autoChooseWord(
+        room
+      );
+
+      io.to(
+        room.roomId
+      ).emit(
+        "drawing-started",
+        {
+          duration: 75
+        }
+      );
+
+      startDrawTimer(
+        io,
+        room
+      );
+    }, 10000);
+
+  if (
+    drawerSocket
+  ) {
+    io.to(
+      drawerSocket
+    ).emit(
+      "choose-word",
+      {
+        choices:
+          result.choices,
+        time: 10
+      }
+    );
+  }
+}
+
 function startDrawTimer(
   io: Server,
-  room: any
+  room: Room
 ) {
   room.game.drawEndsAt =
     Date.now() + 75000;
 
+  const word =
+    room.game.word || "";
+
+  const reveal1 =
+    word[0] || "";
+
+  const reveal2 =
+    word[1] || "";
+
+  const hint1 =
+    setTimeout(() => {
+      if (
+        room.game.phase ===
+        "DRAWING"
+      ) {
+        io.to(
+          room.roomId
+        ).emit(
+          "hint-update",
+          {
+            reveal:
+              reveal1
+          }
+        );
+      }
+    }, 25000);
+
+  const hint2 =
+    setTimeout(() => {
+      if (
+        room.game.phase ===
+        "DRAWING"
+      ) {
+        io.to(
+          room.roomId
+        ).emit(
+          "hint-update",
+          {
+            reveal:
+              reveal1 +
+              reveal2
+          }
+        );
+      }
+    }, 50000);
+
   room.game.drawTimer =
     setTimeout(() => {
+      clearTimeout(
+        hint1
+      );
+
+      clearTimeout(
+        hint2
+      );
+
       io.to(
         room.roomId
       ).emit(
@@ -368,8 +533,15 @@ function startDrawTimer(
       room.game.phase =
         "RESULT";
 
+      room.game.resultEndsAt =
+        Date.now() + 5000;
+
       room.game.resultTimer =
         setTimeout(() => {
+          gameManager.resetTurn(
+            room
+          );
+
           const result =
             gameManager.nextDrawer(
               room
@@ -386,39 +558,11 @@ function startDrawTimer(
             return;
           }
 
-          if (
-            result.drawer
-          ) {
-            const drawerSocket =
-              result.drawer
-                .socketId;
-
-            if (
-              drawerSocket
-            ) {
-              io.to(
-                drawerSocket
-              ).emit(
-                "choose-word",
-                {
-                  choices:
-                    result.choices,
-                  time: 10
-                }
-              );
-            }
-
-            io.to(
-              room.roomId
-            ).emit(
-              "drawer-update",
-              {
-                drawer:
-                  result.drawer
-                    .name
-              }
-            );
-          }
+          startChoosePhase(
+            io,
+            room,
+            result
+          );
         }, 5000);
     }, 75000);
 }
