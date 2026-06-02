@@ -10,6 +10,7 @@ export default function registerGameSocket(
       socket.id
     );
 
+    // CREATE ROOM
     socket.on(
       "create-room",
       ({ name, password }) => {
@@ -33,6 +34,13 @@ export default function registerGameSocket(
           )
         );
 
+        io.to(
+          result.room.roomId
+        ).emit(
+          "holder-update",
+          result.room.holderId
+        );
+
         socket.emit(
           "room-created",
           {
@@ -44,6 +52,7 @@ export default function registerGameSocket(
       }
     );
 
+    // JOIN ROOM
     socket.on(
       "join-room",
       ({
@@ -76,6 +85,12 @@ export default function registerGameSocket(
           )
         );
 
+        io.to(roomId).emit(
+          "holder-update",
+          roomManager.getRoom(roomId)
+            ?.holderId
+        );
+
         socket.emit(
           "room-joined",
           {
@@ -87,6 +102,58 @@ export default function registerGameSocket(
       }
     );
 
+    // KICK PLAYER
+    socket.on(
+      "kick-player",
+      ({
+        roomId,
+        targetName
+      }) => {
+        const result =
+          roomManager.kickPlayer(
+            roomId,
+            socket.id,
+            targetName
+          );
+
+        if (!result.success) {
+          socket.emit(
+            "kick-error",
+            result.message
+          );
+          return;
+        }
+
+        const room =
+          result.room!;
+
+        const target =
+          result.target!;
+
+        const targetSocket =
+          target.socketId;
+
+        if (targetSocket) {
+          io.to(targetSocket).emit(
+            "kicked"
+          );
+        }
+
+        io.to(roomId).emit(
+          "players-update",
+          roomManager.getConnectedPlayers(
+            roomId
+          )
+        );
+
+        io.to(roomId).emit(
+          "holder-update",
+          room.holderId
+        );
+      }
+    );
+
+    // DISCONNECT
     socket.on(
       "disconnect",
       () => {
@@ -95,15 +162,27 @@ export default function registerGameSocket(
             socket.id
           );
 
-        if (!room) return;
+        if (!room) {
+          return;
+        }
+
+        const updatedRoom =
+          room;
 
         io.to(
-          room.roomId
+          updatedRoom.roomId
         ).emit(
           "players-update",
           roomManager.getConnectedPlayers(
-            room.roomId
+            updatedRoom.roomId
           )
+        );
+
+        io.to(
+          updatedRoom.roomId
+        ).emit(
+          "holder-update",
+          updatedRoom.holderId
         );
       }
     );

@@ -202,6 +202,82 @@ class RoomManager {
       p => p.connected
     );
   }
+
+  getRoom(roomId: string) {
+  return this.rooms.get(roomId);
+}
+
+isHolder(
+  roomId: string,
+  socketId: string
+) {
+  const room = this.rooms.get(roomId);
+
+  if (!room) return false;
+
+  const player =
+    room.players.find(
+      p => p.socketId === socketId
+    );
+
+  if (!player) return false;
+
+  return room.holderId === player.id;
+}
+
+kickPlayer(
+  roomId: string,
+  holderSocketId: string,
+  targetName: string
+) {
+  const room =
+    this.rooms.get(roomId);
+
+  if (!room) {
+    return {
+      success: false,
+      message: "Room not found"
+    };
+  }
+
+  if (
+    !this.isHolder(
+      roomId,
+      holderSocketId
+    )
+  ) {
+    return {
+      success: false,
+      message:
+        "Only holder can kick"
+    };
+  }
+
+  const target =
+    room.players.find(
+      p => p.name === targetName
+    );
+
+  if (!target) {
+    return {
+      success: false,
+      message:
+        "Player not found"
+    };
+  }
+
+  room.bannedPlayers.push(
+    target.name
+  );
+
+  target.connected = false;
+
+  return {
+    success: true,
+    room,
+    target
+  };
+}
 }
 
 export default new RoomManager();
