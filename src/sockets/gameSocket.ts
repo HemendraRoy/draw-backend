@@ -269,6 +269,74 @@ socket.on(
   }
 );
 
+socket.on(
+  "change-color",
+  ({
+    roomId,
+    color
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game.currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    io.to(roomId).emit(
+      "color-changed",
+      color
+    );
+  }
+);
+
+socket.on(
+  "change-brush-size",
+  ({
+    roomId,
+    size
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game.currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    io.to(roomId).emit(
+      "brush-size-changed",
+      size
+    );
+  }
+);
+
     // KICK PLAYER
     socket.on(
       "kick-player",
