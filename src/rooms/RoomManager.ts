@@ -47,7 +47,7 @@ class RoomManager {
     currentDrawerId: null,
 
     playersWhoDrewThisRound: [],
-
+    lastTurnScores: [],
     word: null,
     wordChoices: [],
 

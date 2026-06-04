@@ -28,6 +28,11 @@ export interface GameState {
 
   guessedPlayers: string[];
 
+  lastTurnScores: {
+    playerId: string;
+    points: number;
+  }[];
+
   chooseEndsAt?: number;
   drawEndsAt?: number;
   resultEndsAt?: number;

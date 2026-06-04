@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import roomManager from "../rooms/RoomManager";
 import gameManager from "../game/GameManager";
 import { Room } from "../types/game";
+import chatManager from "../game/ChatManager";
 
 export default function registerGameSocket(
   io: Server
@@ -14,95 +15,123 @@ export default function registerGameSocket(
 
     // CREATE ROOM
     socket.on(
-      "create-room",
-      ({ name, password }) => {
-        const result =
-          roomManager.createRoom(
-            name,
-            password,
-            socket.id
-          );
+  "create-room",
+  ({ name, password }) => {
+    const result =
+      roomManager.createRoom(
+        name,
+        password,
+        socket.id
+      );
 
-        socket.join(
-          result.room.roomId
-        );
+    socket.join(
+      result.room.roomId
+    );
 
-        io.to(
-          result.room.roomId
-        ).emit(
-          "players-update",
-          roomManager.getConnectedPlayers(
-            result.room.roomId
-          )
-        );
+    io.to(
+      result.room.roomId
+    ).emit(
+      "players-update",
+      roomManager.getConnectedPlayers(
+        result.room.roomId
+      )
+    );
 
-        io.to(
-          result.room.roomId
-        ).emit(
-          "holder-update",
-          result.room.holderId
-        );
+    io.to(
+      result.room.roomId
+    ).emit(
+      "holder-update",
+      result.room.holderId
+    );
 
-        socket.emit(
-          "room-created",
-          {
-            roomId:
-              result.room.roomId,
-            holder: true
-          }
-        );
+    socket.emit(
+      "room-created",
+      {
+        roomId:
+          result.room.roomId,
+        holder: true
       }
     );
 
-    // JOIN ROOM
-    socket.on(
-      "join-room",
-      ({
+    socket.emit(
+      "leaderboard-update",
+      result.room.players
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          score: p.score
+        }))
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        )
+    );
+  }
+);
+
+//join room
+socket.on(
+  "join-room",
+  ({
+    roomId,
+    name,
+    password
+  }) => {
+    const result =
+      roomManager.joinRoom(
         roomId,
         name,
-        password
-      }) => {
-        const result =
-          roomManager.joinRoom(
-            roomId,
-            name,
-            password,
-            socket.id
-          );
+        password,
+        socket.id
+      );
 
-        if (!result.success) {
-          socket.emit(
-            "join-error",
-            result.message
-          );
-          return;
-        }
+    if (!result.success) {
+      socket.emit(
+        "join-error",
+        result.message
+      );
+      return;
+    }
 
-        socket.join(roomId);
+    socket.join(roomId);
 
-        io.to(roomId).emit(
-          "players-update",
-          roomManager.getConnectedPlayers(
-            roomId
-          )
-        );
+    io.to(roomId).emit(
+      "players-update",
+      roomManager.getConnectedPlayers(
+        roomId
+      )
+    );
 
-        io.to(roomId).emit(
-          "holder-update",
-          roomManager.getRoom(roomId)
-            ?.holderId
-        );
+    io.to(roomId).emit(
+      "holder-update",
+      roomManager.getRoom(roomId)
+        ?.holderId
+    );
 
-        socket.emit(
-          "room-joined",
-          {
-            roomId,
-            reconnect:
-              result.reconnect
-          }
-        );
+    socket.emit(
+      "room-joined",
+      {
+        roomId,
+        reconnect:
+          result.reconnect
       }
     );
+
+    socket.emit(
+      "leaderboard-update",
+      result.room!.players
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          score: p.score
+        }))
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        )
+    );
+  }
+);
 
     // KICK PLAYER
     socket.on(

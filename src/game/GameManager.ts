@@ -157,7 +157,7 @@ class GameManager {
     clearTimeout(
       room.game.resultTimer
     );
-
+    room.game.lastTurnScores = [];
     room.game.word = null;
     room.game.wordChoices =
       [];
