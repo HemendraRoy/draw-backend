@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { Room } from "../types/game";
 import { normalizeWord } from "../utils/normalizeWord";
+import gameManager from "./GameManager";
 
 const POINTS = [100, 80, 60, 40];
 
@@ -65,6 +66,17 @@ class ChatManager {
         POINTS[rank] || 40;
 
       player.score += points;
+      if (
+        gameManager.isRoundCompleted(
+            room
+        )
+        ) {
+        io.to(
+            room.roomId
+        ).emit(
+            "all-guessed"
+        );
+    }
 
       room.game.lastTurnScores.push({
         playerId,

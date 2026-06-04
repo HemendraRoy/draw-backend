@@ -105,7 +105,24 @@ class GameManager {
         room.game.wordChoices
     };
   }
+isRoundCompleted(
+  room: Room
+) {
+  const connectedGuessers =
+    room.players.filter(
+      p =>
+        p.connected &&
+        p.id !==
+          room.game
+            .currentDrawerId
+    );
 
+  return (
+    room.game
+      .guessedPlayers.length >=
+    connectedGuessers.length
+  );
+}
   chooseWord(
     room: Room,
     word: string

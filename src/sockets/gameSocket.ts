@@ -68,9 +68,38 @@ export default function registerGameSocket(
     );
   }
 );
+    socket.on(
+  "chat-message",
+  ({
+    roomId,
+    message
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
 
-//join room
-socket.on(
+    if (!room) return;
+
+    const player =
+      room.players.find(
+        p =>
+          p.socketId ===
+          socket.id
+      );
+
+    if (!player) return;
+
+    chatManager.handleMessage(
+      io,
+      room,
+      player.id,
+      message
+    );
+  }
+);
+    // JOIN ROOM
+    socket.on(
   "join-room",
   ({
     roomId,
