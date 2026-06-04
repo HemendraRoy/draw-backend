@@ -59,45 +59,34 @@ class ChatManager {
       );
 
       const rank =
-        room.game.guessedPlayers.length -
-        1;
+        room.game.guessedPlayers.length - 1;
 
       const points =
         POINTS[rank] || 40;
 
       player.score += points;
-      if (
-        gameManager.isRoundCompleted(
-            room
-        )
-        ) {
-        io.to(
-            room.roomId
-        ).emit(
-            "all-guessed"
-        );
-    }
 
       room.game.lastTurnScores.push({
         playerId,
         points
       });
-      const leaderboard =
-  room.players
-    .map(p => ({
-      id: p.id,
-      name: p.name,
-      score: p.score
-    }))
-    .sort(
-      (a, b) =>
-        b.score - a.score
-    );
 
-io.to(room.roomId).emit(
-  "leaderboard-update",
-  leaderboard
-);
+      const leaderboard =
+        room.players
+          .map(p => ({
+            id: p.id,
+            name: p.name,
+            score: p.score
+          }))
+          .sort(
+            (a, b) =>
+              b.score - a.score
+          );
+
+      io.to(room.roomId).emit(
+        "leaderboard-update",
+        leaderboard
+      );
 
       io.to(room.roomId).emit(
         "chat-message",
@@ -106,6 +95,18 @@ io.to(room.roomId).emit(
           message: `${player.name} guessed the word!`
         }
       );
+
+      if (
+        gameManager.isRoundCompleted(
+          room
+        )
+      ) {
+        io.to(
+          room.roomId
+        ).emit(
+          "all-players-guessed"
+        );
+      }
 
       return;
     }

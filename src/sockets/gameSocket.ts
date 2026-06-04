@@ -98,6 +98,7 @@ export default function registerGameSocket(
     );
   }
 );
+
     // JOIN ROOM
     socket.on(
   "join-room",
@@ -577,7 +578,52 @@ function startDrawTimer(
       clearTimeout(
         hint2
       );
+      const drawer =
+  room.players.find(
+    p =>
+      p.id ===
+      room.game.currentDrawerId
+  );
 
+if (drawer) {
+  const guessedCount =
+    room.game.guessedPlayers
+      .length;
+
+  const drawerPoints =
+    guessedCount * 50;
+
+  drawer.score +=
+    drawerPoints;
+
+  room.game.lastTurnScores.push(
+    {
+      playerId:
+        drawer.id,
+      points:
+        drawerPoints
+    }
+  );
+
+  const leaderboard =
+    room.players
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        score: p.score
+      }))
+      .sort(
+        (a, b) =>
+          b.score - a.score
+      );
+
+  io.to(
+    room.roomId
+  ).emit(
+    "leaderboard-update",
+    leaderboard
+  );
+}
       io.to(
         room.roomId
       ).emit(
