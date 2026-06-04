@@ -178,6 +178,11 @@ socket.emit(
   }
 );
 socket.emit(
+  "drawing-history",
+  room.game
+    .drawingHistory
+);
+socket.emit(
   "canvas-sync",
   room.game.drawingEvents
 );
@@ -538,6 +543,38 @@ socket.on(
         );
       }
     );
+    socket.on(
+  "undo-draw",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    room.game.drawingHistory.pop();
+
+    io.to(roomId).emit(
+      "undo-draw"
+    );
+  }
+);
 
     // DISCONNECT
     socket.on(

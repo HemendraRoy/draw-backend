@@ -49,6 +49,7 @@ class RoomManager {
     playersWhoDrewThisRound: [],
     lastTurnScores: [],
     drawingEvents: [],
+    drawingHistory: [],
     word: null,
     wordChoices: [],
 

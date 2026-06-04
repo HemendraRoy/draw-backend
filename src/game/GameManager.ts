@@ -175,6 +175,8 @@ isRoundCompleted(
       room.game.resultTimer
     );
     room.game.lastTurnScores = [];
+    room.game.drawingHistory =
+  [];
     room.game.drawingEvents =
       [];
     room.game.word = null;

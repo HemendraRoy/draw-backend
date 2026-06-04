@@ -37,6 +37,7 @@ export interface GameState {
   chooseEndsAt?: number;
   drawEndsAt?: number;
   resultEndsAt?: number;
+  drawingHistory: any[];
 
   chooseTimer?: NodeJS.Timeout;
   drawTimer?: NodeJS.Timeout;
