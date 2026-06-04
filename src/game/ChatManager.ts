@@ -107,41 +107,20 @@ class ChatManager {
       );
 
       if (
-        gameManager.isRoundCompleted(
-          room
-        )
-      ) {
-        clearTimeout(
-          room.game.drawTimer
-        );
+  gameManager.isRoundCompleted(
+    room
+  )
+) {
+  clearTimeout(
+    room.game.drawTimer
+  );
 
-        room.game.phase =
-          "RESULT";
-
-        io.to(
-          room.roomId
-        ).emit(
-          "turn-ended",
-          {
-            word:
-              room.game.word,
-
-            scores:
-              room.game.lastTurnScores.map(
-                s => ({
-                  player:
-                    room.players.find(
-                      p =>
-                        p.id ===
-                        s.playerId
-                    )?.name,
-                  points:
-                    s.points
-                })
-              )
-          }
-        );
-      }
+  io.to(
+    room.roomId
+  ).emit(
+    "all-players-guessed"
+  );
+}
 
       return;
     }

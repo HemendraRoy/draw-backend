@@ -993,7 +993,15 @@ function startChoosePhase(
     );
   }
 }
-
+function startResultPhase(
+  io: Server,
+  room: Room
+) {
+  startResultPhase(
+  io,
+  room
+);
+}
 function startDrawTimer(
   io: Server,
   room: Room
