@@ -175,12 +175,14 @@ isRoundCompleted(
       room.game.resultTimer
     );
     room.game.lastTurnScores = [];
+    room.game.drawingEvents =
+      [];
     room.game.word = null;
     room.game.wordChoices =
       [];
     room.game.guessedPlayers =
       [];
-
+      
     room.game.chooseEndsAt =
       undefined;
 

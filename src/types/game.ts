@@ -27,12 +27,13 @@ export interface GameState {
   wordChoices: string[];
 
   guessedPlayers: string[];
+  
 
   lastTurnScores: {
     playerId: string;
     points: number;
   }[];
-
+  drawingEvents: any[];
   chooseEndsAt?: number;
   drawEndsAt?: number;
   resultEndsAt?: number;

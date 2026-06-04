@@ -177,6 +177,10 @@ socket.emit(
       room.game.resultEndsAt
   }
 );
+socket.emit(
+  "canvas-sync",
+  room.game.drawingEvents
+);
 
 socket.emit(
   "leaderboard-update",
@@ -422,6 +426,9 @@ if (
         ) {
           return;
         }
+        room.game.drawingEvents.push(
+          data
+        );
 
         socket.to(roomId).emit(
           "draw-event",
