@@ -568,22 +568,31 @@ function startDrawTimer(
         );
       }
     }, 50000);
-
+    
   room.game.drawTimer =
-    setTimeout(() => {
-      clearTimeout(
-        hint1
-      );
+  setTimeout(() => {
 
-      clearTimeout(
-        hint2
+    if (
+      room.game.phase !==
+      "DRAWING"
+    ) {
+      return;
+    }
+
+    clearTimeout(
+      hint1
+    );
+
+    clearTimeout(
+      hint2
+    );
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game.currentDrawerId
       );
-      const drawer =
-  room.players.find(
-    p =>
-      p.id ===
-      room.game.currentDrawerId
-  );
 
 if (drawer) {
   const guessedCount =
@@ -625,14 +634,28 @@ if (drawer) {
   );
 }
       io.to(
-        room.roomId
-      ).emit(
-        "turn-ended",
-        {
-          word:
-            room.game.word
-        }
-      );
+  room.roomId
+).emit(
+  "turn-ended",
+  {
+    word:
+      room.game.word,
+
+    scores:
+      room.game.lastTurnScores.map(
+        s => ({
+          player:
+            room.players.find(
+              p =>
+                p.id ===
+                s.playerId
+            )?.name,
+          points:
+            s.points
+        })
+      )
+  }
+);
 
       room.game.phase =
         "RESULT";
