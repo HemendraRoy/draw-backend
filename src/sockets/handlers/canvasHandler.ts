@@ -20,7 +20,7 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
     const room = verifyDrawer(roomId);
     if (!room) return;
     room.game.drawingHistory = [];
-    room.game.drawingEvents = []; // fixes dual canvas arrays in your raw code
+    room.game.drawingEvents = [];
     io.to(roomId).emit("clear-canvas");
     io.to(roomId).emit("canvas-cleared");
   });
