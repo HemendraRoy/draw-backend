@@ -21,6 +21,7 @@ class ChatManager {
           message
         }
       );
+
       return;
     }
 
@@ -34,6 +35,14 @@ class ChatManager {
     const isDrawer =
       room.game.currentDrawerId ===
       playerId;
+
+    if (
+      isDrawer &&
+      room.game.phase ===
+        "DRAWING"
+    ) {
+      return;
+    }
 
     const alreadyGuessed =
       room.game.guessedPlayers.includes(
@@ -51,23 +60,13 @@ class ChatManager {
     if (
       !isDrawer &&
       !alreadyGuessed &&
+      normalizedWord &&
       normalizedGuess ===
         normalizedWord
     ) {
       room.game.guessedPlayers.push(
         playerId
       );
-      if (
-  gameManager.isRoundCompleted(
-    room
-  )
-) {
-  io.to(
-    room.roomId
-  ).emit(
-    "all-guessed"
-  );
-}
 
       const rank =
         room.game.guessedPlayers.length - 1;
@@ -108,40 +107,41 @@ class ChatManager {
       );
 
       if (
-  gameManager.isRoundCompleted(
-    room
-  )
-) {
-  clearTimeout(
-    room.game.drawTimer
-  );
-  room.game.phase =
-    "RESULT";
-
-  io.to(
-    room.roomId
-  ).emit(
-    "turn-ended",
-    {
-      word:
-        room.game.word,
-
-      scores:
-        room.game.lastTurnScores.map(
-          s => ({
-            player:
-              room.players.find(
-                p =>
-                  p.id ===
-                  s.playerId
-              )?.name,
-            points:
-              s.points
-          })
+        gameManager.isRoundCompleted(
+          room
         )
-    }
-  );
-}
+      ) {
+        clearTimeout(
+          room.game.drawTimer
+        );
+
+        room.game.phase =
+          "RESULT";
+
+        io.to(
+          room.roomId
+        ).emit(
+          "turn-ended",
+          {
+            word:
+              room.game.word,
+
+            scores:
+              room.game.lastTurnScores.map(
+                s => ({
+                  player:
+                    room.players.find(
+                      p =>
+                        p.id ===
+                        s.playerId
+                    )?.name,
+                  points:
+                    s.points
+                })
+              )
+          }
+        );
+      }
 
       return;
     }

@@ -60,20 +60,30 @@ class GameManager {
         [];
 
       if (
-        room.game.currentRound >
-        3
-      ) {
-        room.game.started =
-          false;
+  room.game.currentRound >
+  3
+) {
+  room.game.started =
+    false;
 
-        room.game.phase =
-          "WAITING";
+  room.game.phase =
+    "WAITING";
 
-        return {
-          success: true,
-          gameEnded: true
-        };
-      }
+  const leaderboard =
+    [...room.players]
+      .sort(
+        (a, b) =>
+          b.score - a.score
+      );
+
+  return {
+    success: true,
+    gameEnded: true,
+    winner:
+      leaderboard[0],
+    leaderboard
+  };
+}
 
       return this.nextDrawer(
         room

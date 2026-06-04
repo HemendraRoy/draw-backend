@@ -134,15 +134,22 @@ export default function registerGameSocket(
         );
 
       if (
-        result.gameEnded
-      ) {
-        io.to(
-          room.roomId
-        ).emit(
-          "game-ended"
-        );
-        return;
-      }
+  result.gameEnded
+) {
+  io.to(
+    room.roomId
+  ).emit(
+    "game-ended",
+    {
+      winner:
+        result.winner,
+      leaderboard:
+        result.leaderboard
+    }
+  );
+
+  return;
+}
 
       startChoosePhase(
         io,
@@ -552,6 +559,20 @@ socket.on(
             duration: 75
           }
         );
+        io.to(roomId).emit(
+  "word-mask",
+  {
+    mask:
+      room.game.word!
+        .split("")
+        .map(c =>
+          c === " "
+            ? " "
+            : "_"
+        )
+        .join(" ")
+  }
+);
 
         startDrawTimer(
           io,
@@ -598,6 +619,171 @@ socket.on(
         );
       }
     );
+    socket.on(
+  "clear-canvas",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    room.game.drawingHistory =
+      [];
+
+    io.to(roomId).emit(
+      "clear-canvas"
+    );
+  }
+);
+socket.on(
+  "undo-stroke",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    room.game.drawingHistory.pop();
+
+    io.to(roomId).emit(
+      "undo-stroke"
+    );
+  }
+);
+socket.on(
+  "restart-game",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    if (
+      !roomManager.isHolder(
+        roomId,
+        socket.id
+      )
+    ) {
+      return;
+    }
+
+    room.players.forEach(
+      p => {
+        p.score = 0;
+      }
+    );
+
+    room.game.currentRound =
+      1;
+
+    room.game
+      .playersWhoDrewThisRound =
+      [];
+
+    const result =
+      gameManager.startGame(
+        room
+      );
+
+    if (!result.success)
+      return;
+
+    io.to(roomId).emit(
+      "leaderboard-update",
+      room.players
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          score: p.score
+        }))
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        )
+    );
+
+    startChoosePhase(
+      io,
+      room,
+      result
+    );
+  }
+);
+    
+    socket.on(
+  "fill-canvas",
+  ({
+    roomId,
+    color
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    io.to(
+      roomId
+    ).emit(
+      "fill-canvas",
+      {
+        color
+      }
+    );
+  }
+);
     socket.on(
   "undo-draw",
   ({ roomId }) => {
@@ -683,15 +869,22 @@ socket.on(
                 );
 
               if (
-                result.gameEnded
-              ) {
-                io.to(
-                  room.roomId
-                ).emit(
-                  "game-ended"
-                );
-                return;
-              }
+  result.gameEnded
+) {
+  io.to(
+    room.roomId
+  ).emit(
+    "game-ended",
+    {
+      winner:
+        result.winner,
+      leaderboard:
+        result.leaderboard
+    }
+  );
+
+  return;
+}
 
               startChoosePhase(
                 io,
@@ -762,6 +955,22 @@ function startChoosePhase(
           duration: 75
         }
       );
+      io.to(
+  room.roomId
+).emit(
+  "word-mask",
+  {
+    mask:
+      room.game.word!
+        .split("")
+        .map(c =>
+          c === " "
+            ? " "
+            : "_"
+        )
+        .join(" ")
+  }
+);
 
       startDrawTimer(
         io,
@@ -947,15 +1156,22 @@ function startDrawTimer(
           );
 
         if (
-          result.gameEnded
-        ) {
-          io.to(
-            room.roomId
-          ).emit(
-            "game-ended"
-          );
-          return;
-        }
+  result.gameEnded
+) {
+  io.to(
+    room.roomId
+  ).emit(
+    "game-ended",
+    {
+      winner:
+        result.winner,
+      leaderboard:
+        result.leaderboard
+    }
+  );
+
+  return;
+}
 
         startChoosePhase(
           io,
