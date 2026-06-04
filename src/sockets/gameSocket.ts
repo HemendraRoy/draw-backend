@@ -235,6 +235,40 @@ if (
   }
 );
 
+socket.on(
+  "clear-canvas",
+  ({ roomId }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const drawer =
+      room.players.find(
+        p =>
+          p.id ===
+          room.game
+            .currentDrawerId
+      );
+
+    if (
+      drawer?.socketId !==
+      socket.id
+    ) {
+      return;
+    }
+
+    room.game.drawingEvents =
+      [];
+
+    io.to(roomId).emit(
+      "canvas-cleared"
+    );
+  }
+);
+
     // KICK PLAYER
     socket.on(
       "kick-player",
