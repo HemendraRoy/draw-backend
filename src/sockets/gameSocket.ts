@@ -96,6 +96,61 @@ export default function registerGameSocket(
       player.id,
       message
     );
+    if (
+  gameManager.isRoundCompleted(
+    room
+  ) &&
+  room.game.phase ===
+    "DRAWING"
+) {
+  clearTimeout(
+    room.game.drawTimer
+  );
+
+  room.game.phase =
+    "RESULT";
+
+  io.to(
+    room.roomId
+  ).emit(
+    "turn-ended",
+    {
+      word:
+        room.game.word,
+      scores:
+        room.game.lastTurnScores
+    }
+  );
+
+  room.game.resultTimer =
+    setTimeout(() => {
+      gameManager.resetTurn(
+        room
+      );
+
+      const result =
+        gameManager.nextDrawer(
+          room
+        );
+
+      if (
+        result.gameEnded
+      ) {
+        io.to(
+          room.roomId
+        ).emit(
+          "game-ended"
+        );
+        return;
+      }
+
+      startChoosePhase(
+        io,
+        room,
+        result
+      );
+    }, 5000);
+}
   }
 );
 

@@ -57,6 +57,17 @@ class ChatManager {
       room.game.guessedPlayers.push(
         playerId
       );
+      if (
+  gameManager.isRoundCompleted(
+    room
+  )
+) {
+  io.to(
+    room.roomId
+  ).emit(
+    "all-guessed"
+  );
+}
 
       const rank =
         room.game.guessedPlayers.length - 1;
