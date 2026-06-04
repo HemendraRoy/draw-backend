@@ -125,41 +125,109 @@ export default function registerGameSocket(
 
     socket.join(roomId);
 
-    io.to(roomId).emit(
-      "players-update",
-      roomManager.getConnectedPlayers(
-        roomId
-      )
-    );
+const room =
+  result.room!;
 
-    io.to(roomId).emit(
-      "holder-update",
-      roomManager.getRoom(roomId)
-        ?.holderId
-    );
+io.to(roomId).emit(
+  "players-update",
+  roomManager.getConnectedPlayers(
+    roomId
+  )
+);
 
-    socket.emit(
-      "room-joined",
-      {
-        roomId,
-        reconnect:
-          result.reconnect
-      }
-    );
+io.to(roomId).emit(
+  "holder-update",
+  room.holderId
+);
 
-    socket.emit(
-      "leaderboard-update",
-      result.room!.players
-        .map(p => ({
-          id: p.id,
-          name: p.name,
-          score: p.score
-        }))
-        .sort(
-          (a, b) =>
-            b.score - a.score
+socket.emit(
+  "room-joined",
+  {
+    roomId,
+    reconnect:
+      result.reconnect
+  }
+);
+
+socket.emit(
+  "game-state",
+  {
+    started:
+      room.game.started,
+
+    phase:
+      room.game.phase,
+
+    round:
+      room.game.currentRound,
+
+    drawerId:
+      room.game.currentDrawerId,
+
+    guessedPlayers:
+      room.game.guessedPlayers,
+
+    chooseEndsAt:
+      room.game.chooseEndsAt,
+
+    drawEndsAt:
+      room.game.drawEndsAt,
+
+    resultEndsAt:
+      room.game.resultEndsAt
+  }
+);
+
+socket.emit(
+  "leaderboard-update",
+  room.players
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      score: p.score
+    }))
+    .sort(
+      (a, b) =>
+        b.score - a.score
+    )
+);
+
+const drawer =
+  room.players.find(
+    p =>
+      p.id ===
+      room.game.currentDrawerId
+  );
+
+socket.emit(
+  "drawer-update",
+  {
+    drawer:
+      drawer?.name
+  }
+);
+
+if (
+  room.game.phase ===
+  "DRAWING" &&
+  room.game.drawEndsAt
+) {
+  socket.emit(
+    "drawing-started",
+    {
+      duration:
+        Math.max(
+          0,
+          Math.floor(
+            (
+              room.game.drawEndsAt -
+              Date.now()
+            ) / 1000
+          )
         )
-    );
+    }
+  );
+}
   }
 );
 
