@@ -403,6 +403,63 @@ socket.on(
     );
   }
 );
+socket.on(
+  "start-stroke",
+  ({
+    roomId,
+    stroke
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    room.game.drawingHistory.push(
+      stroke
+    );
+
+    socket.to(roomId).emit(
+      "start-stroke",
+      stroke
+    );
+  }
+);
+socket.on(
+  "stroke-point",
+  ({
+    roomId,
+    point
+  }) => {
+    const room =
+      roomManager.getRoom(
+        roomId
+      );
+
+    if (!room) return;
+
+    const last =
+      room.game
+        .drawingHistory[
+        room.game
+          .drawingHistory
+          .length - 1
+      ];
+
+    if (last) {
+      last.points.push(
+        point
+      );
+    }
+
+    socket.to(roomId).emit(
+      "stroke-point",
+      point
+    );
+  }
+);
+
 
     // KICK PLAYER
     socket.on(
@@ -662,25 +719,12 @@ socket.on(
 
     if (!room) return;
 
-    const drawer =
-      room.players.find(
-        p =>
-          p.id ===
-          room.game
-            .currentDrawerId
-      );
-
-    if (
-      drawer?.socketId !==
-      socket.id
-    ) {
-      return;
-    }
-
     room.game.drawingHistory.pop();
 
     io.to(roomId).emit(
-      "undo-stroke"
+      "drawing-history",
+      room.game
+        .drawingHistory
     );
   }
 );

@@ -37,13 +37,21 @@ export interface GameState {
   chooseEndsAt?: number;
   drawEndsAt?: number;
   resultEndsAt?: number;
-  drawingHistory: any[];
+  drawingHistory: Stroke[];
 
   chooseTimer?: NodeJS.Timeout;
   drawTimer?: NodeJS.Timeout;
   resultTimer?: NodeJS.Timeout;
 }
-
+export interface Stroke {
+  id: string;
+  color: string;
+  size: number;
+  points: {
+    x: number;
+    y: number;
+  }[];
+}
 export interface Room {
   roomId: string;
   holderId: string | null;
