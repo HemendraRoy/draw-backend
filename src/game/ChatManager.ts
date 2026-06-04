@@ -6,133 +6,62 @@ import gameManager from "./GameManager";
 const POINTS = [100, 80, 60, 40];
 
 class ChatManager {
-  handleMessage(
-    io: Server,
-    room: Room,
-    playerId: string,
-    message: string
-  ) {
+  handleMessage(io: Server, room: Room, playerId: string, message: string) {
+    // If the game hasn't started, pass everything through as a regular chat
     if (!room.game.started) {
-      io.to(room.roomId).emit(
-        "chat-message",
-        {
-          type: "chat",
-          from: playerId,
-          message
-        }
-      );
-
-      return;
+      return this.emitChatMessage(io, room.roomId, "chat", playerId, message);
     }
 
-    const player =
-      room.players.find(
-        p => p.id === playerId
-      );
-
+    const player = room.players.find(p => p.id === playerId);
     if (!player) return;
 
-    const isDrawer =
-      room.game.currentDrawerId ===
-      playerId;
+    const isDrawer = room.game.currentDrawerId === playerId;
+    if (isDrawer && room.game.phase === "DRAWING") return; // Block drawers from chatting/spoiling
 
-    if (
-      isDrawer &&
-      room.game.phase ===
-        "DRAWING"
-    ) {
+    const alreadyGuessed = room.game.guessedPlayers.includes(playerId);
+    const normalizedGuess = normalizeWord(message);
+    const normalizedTarget = normalizeWord(room.game.word || "");
+
+    const isCorrectGuess = !isDrawer && !alreadyGuessed && normalizedTarget && normalizedGuess === normalizedTarget;
+
+    if (isCorrectGuess) {
+      this.processCorrectGuess(io, room, player, playerId);
       return;
     }
 
-    const alreadyGuessed =
-      room.game.guessedPlayers.includes(
-        playerId
-      );
+    // Regular in-game chat message if it wasn't a correct guess
+    this.emitChatMessage(io, room.roomId, "chat", player.name, message);
+  }
 
-    const normalizedGuess =
-      normalizeWord(message);
+  // HELPER METHODS
 
-    const normalizedWord =
-      normalizeWord(
-        room.game.word || ""
-      );
+  private processCorrectGuess(io: Server, room: Room, player: any, playerId: string) {
+    room.game.guessedPlayers.push(playerId);
 
-    if (
-      !isDrawer &&
-      !alreadyGuessed &&
-      normalizedWord &&
-      normalizedGuess ===
-        normalizedWord
-    ) {
-      room.game.guessedPlayers.push(
-        playerId
-      );
+    // Calculate score based on rank
+    const rank = room.game.guessedPlayers.length - 1;
+    const points = POINTS[rank] || 40;
+    player.score += points;
 
-      const rank =
-        room.game.guessedPlayers.length - 1;
+    room.game.lastTurnScores.push({ playerId, points });
 
-      const points =
-        POINTS[rank] || 40;
+    // Generate and emit updated leaderboard
+    const leaderboard = room.players
+      .map(p => ({ id: p.id, name: p.name, score: p.score }))
+      .sort((a, b) => b.score - a.score);
 
-      player.score += points;
+    io.to(room.roomId).emit("leaderboard-update", leaderboard);
+    this.emitChatMessage(io, room.roomId, "system", null, `${player.name} guessed the word!`);
 
-      room.game.lastTurnScores.push({
-        playerId,
-        points
-      });
-
-      const leaderboard =
-        room.players
-          .map(p => ({
-            id: p.id,
-            name: p.name,
-            score: p.score
-          }))
-          .sort(
-            (a, b) =>
-              b.score - a.score
-          );
-
-      io.to(room.roomId).emit(
-        "leaderboard-update",
-        leaderboard
-      );
-
-      io.to(room.roomId).emit(
-        "chat-message",
-        {
-          type: "system",
-          message: `${player.name} guessed the word!`
-        }
-      );
-
-      if (
-  gameManager.isRoundCompleted(
-    room
-  )
-) {
-  clearTimeout(
-    room.game.drawTimer
-  );
-
-  io.to(
-    room.roomId
-  ).emit(
-    "all-players-guessed"
-  );
-}
-
-      return;
+    // Check if turn needs to end early
+    if (gameManager.isRoundCompleted(room)) {
+      clearTimeout(room.game.drawTimer);
+      io.to(room.roomId).emit("all-players-guessed");
     }
+  }
 
-    io.to(room.roomId).emit(
-      "chat-message",
-      {
-        type: "chat",
-        from: player.name,
-        message
-      }
-    );
+  private emitChatMessage(io: Server, roomId: string, type: "chat" | "system", from: string | null, message: string) {
+    io.to(roomId).emit("chat-message", { type, ...(from && { from }), message });
   }
 }
 
