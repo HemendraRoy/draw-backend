@@ -21,6 +21,8 @@ app.get("/", (_, res) => {
 
 registerGameSocket(io);
 
-server.listen(5000, () => {
-  console.log("Running 5000");
+const PORT = process.env.PORT || 10000;
+
+server.listen(PORT, () => {
+  console.log("Server running");
 });
