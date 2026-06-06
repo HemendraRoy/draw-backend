@@ -1,4 +1,4 @@
-# DrawStorm Backend
+# Draw Backend
 
 A real-time multiplayer drawing and guessing game inspired by Skribbl.io, built with Node.js, TypeScript, Express, and Socket.IO.
 
