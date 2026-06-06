@@ -7,13 +7,13 @@ const POINTS = [100, 80, 60, 40];
 
 class ChatManager {
   handleMessage(io: Server, room: Room, playerId: string, message: string) {
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) return;
+
     // If the game hasn't started, pass everything through as a regular chat
     if (!room.game.started) {
       return this.emitChatMessage(io, room.roomId, "chat", player.name, message);
     }
-
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) return;
 
     const isDrawer = room.game.currentDrawerId === playerId;
     if (isDrawer && room.game.phase === "DRAWING") return; // Block drawers from chatting/spoiling
