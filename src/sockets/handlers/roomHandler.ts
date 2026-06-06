@@ -54,10 +54,6 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     socket.emit("drawing-history", room.game.drawingHistory);
     socket.emit("canvas-sync", room.game.drawingEvents);
 
-    if (room.game.canvasBackground) {
-      socket.emit("fill-canvas", { color: room.game.canvasBackground });
-    }
-
     socket.emit("leaderboard-update", room.players
       .map(p => ({ id: p.id, name: p.name, score: p.score }))
       .sort((a, b) => b.score - a.score)

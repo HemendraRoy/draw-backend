@@ -171,5 +171,4 @@ export function resetGameToLobby(room: Room) {
   room.game.drawEndsAt = undefined;
   room.game.resultEndsAt = undefined;
   room.game.hintReveal = undefined;
-  room.game.canvasBackground = undefined;
 }

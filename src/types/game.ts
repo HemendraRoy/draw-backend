@@ -37,7 +37,7 @@ export interface GameState {
   chooseEndsAt?: number;
   drawEndsAt?: number;
   resultEndsAt?: number;
-  drawingHistory: Stroke[];
+  drawingHistory: CanvasItem[];
 
   chooseTimer?: NodeJS.Timeout;
   drawTimer?: NodeJS.Timeout;
@@ -45,7 +45,6 @@ export interface GameState {
   hintTimer1?: NodeJS.Timeout;
   hintTimer2?: NodeJS.Timeout;
   hintReveal?: string;
-  canvasBackground?: string;
 }
 export interface Stroke {
   id: string;
@@ -56,6 +55,16 @@ export interface Stroke {
     y: number;
   }[];
 }
+
+export interface FillAction {
+  id: string;
+  type: "fill";
+  color: string;
+  x: number;
+  y: number;
+}
+
+export type CanvasItem = Stroke | FillAction;
 export interface Room {
   roomId: string;
   holderId: string | null;

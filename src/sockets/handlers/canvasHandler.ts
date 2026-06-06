@@ -1,5 +1,7 @@
 import { Server, Socket } from "socket.io";
+import crypto from "crypto";
 import roomManager from "../../rooms/RoomManager";
+import { FillAction } from "../../types/game";
 
 export default function registerCanvasHandlers(io: Server, socket: Socket) {
   const verifyDrawer = (roomId: string) => {
@@ -21,7 +23,6 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
     if (!room) return;
     room.game.drawingHistory = [];
     room.game.drawingEvents = [];
-    room.game.canvasBackground = undefined;
     io.to(roomId).emit("clear-canvas");
     io.to(roomId).emit("canvas-cleared");
   });
@@ -47,7 +48,7 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
     const room = roomManager.getRoom(roomId);
     if (!room) return;
     const last = room.game.drawingHistory[room.game.drawingHistory.length - 1];
-    if (last) last.points.push(point);
+    if (last && "points" in last) last.points.push(point);
     socket.to(roomId).emit("stroke-point", point);
   });
 
@@ -58,19 +59,26 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
     io.to(roomId).emit("drawing-history", room.game.drawingHistory);
   });
 
-  socket.on("fill-canvas", ({ roomId, color }) => {
+  socket.on("fill-canvas", ({ roomId, color, x, y, id }) => {
     const room = verifyDrawer(roomId);
     if (!room) return;
-    room.game.canvasBackground = color;
-    room.game.drawingHistory = [];
-    room.game.drawingEvents = [];
-    io.to(roomId).emit("fill-canvas", { color });
+
+    const fill: FillAction = {
+      id: id || crypto.randomUUID(),
+      type: "fill",
+      color,
+      x,
+      y,
+    };
+
+    room.game.drawingHistory.push(fill);
+    socket.to(roomId).emit("fill-canvas", fill);
   });
 
   socket.on("undo-draw", ({ roomId }) => {
     const room = verifyDrawer(roomId);
     if (!room) return;
     room.game.drawingHistory.pop();
-    io.to(roomId).emit("undo-draw");
+    io.to(roomId).emit("drawing-history", room.game.drawingHistory);
   });
 }
