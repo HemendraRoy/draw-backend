@@ -1,10 +1,7 @@
 import { Server } from "socket.io";
 import { Room } from "../../types/game";
 import gameManager from "../../game/GameManager";
-
-function wordMask(word: string) {
-  return word.split("").map((c) => (c === " " ? " " : "_")).join(" ");
-}
+import { buildWordHintDisplay } from "../../utils/wordHint";
 
 export function clearHintTimers(room: Room) {
   if (room.game.hintTimer1) clearTimeout(room.game.hintTimer1);
@@ -39,17 +36,17 @@ export function emitLeaderboard(io: Server, room: Room) {
 
 export function startDrawingPhase(io: Server, room: Room) {
   const word = room.game.word || "";
-  room.game.hintReveal = "";
-
-  io.to(room.roomId).emit("drawing-started", {
-    duration: 75,
-    mask: wordMask(word),
-  });
+  room.game.hintReveal = "0";
 
   const drawer = room.players.find((p) => p.id === room.game.currentDrawerId);
   if (drawer?.socketId) {
     io.to(drawer.socketId).emit("drawer-word", { word });
   }
+
+  io.to(room.roomId).emit("drawing-started", {
+    duration: 75,
+    hintDisplay: buildWordHintDisplay(word, 0),
+  });
 
   startDrawTimer(io, room);
 }
@@ -125,20 +122,22 @@ export function startDrawTimer(io: Server, room: Room) {
 
   room.game.drawEndsAt = Date.now() + 75000;
   const word = room.game.word || "";
-  const reveal1 = word[0] || "";
-  const reveal2 = word[1] || "";
 
   room.game.hintTimer1 = setTimeout(() => {
     if (room.game.phase === "DRAWING") {
-      room.game.hintReveal = reveal1;
-      io.to(room.roomId).emit("hint-update", { reveal: reveal1 });
+      room.game.hintReveal = "1";
+      io.to(room.roomId).emit("hint-update", {
+        hintDisplay: buildWordHintDisplay(word, 1),
+      });
     }
   }, 25000);
 
   room.game.hintTimer2 = setTimeout(() => {
     if (room.game.phase === "DRAWING") {
-      room.game.hintReveal = reveal1 + reveal2;
-      io.to(room.roomId).emit("hint-update", { reveal: reveal1 + reveal2 });
+      room.game.hintReveal = "2";
+      io.to(room.roomId).emit("hint-update", {
+        hintDisplay: buildWordHintDisplay(word, 2),
+      });
     }
   }, 50000);
 

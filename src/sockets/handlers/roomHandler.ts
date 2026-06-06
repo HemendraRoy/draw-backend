@@ -2,10 +2,7 @@ import { Server, Socket } from "socket.io";
 import roomManager from "../../rooms/RoomManager";
 import gameManager from "../../game/GameManager";
 import { startChoosePhase, clearHintTimers } from "../utils/gameHelpers";
-
-function wordMask(word: string) {
-  return word.split("").map((c) => (c === " " ? " " : "_")).join(" ");
-}
+import { buildWordHintDisplay } from "../../utils/wordHint";
 
 export default function registerRoomHandlers(io: Server, socket: Socket) {
   // CREATE ROOM
@@ -88,14 +85,14 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     }
 
     if (room.game.phase === "DRAWING" && room.game.drawEndsAt && room.game.word) {
+      const revealedLetters = room.game.hintReveal
+        ? parseInt(room.game.hintReveal, 10) || 0
+        : 0;
+
       socket.emit("drawing-started", {
         duration: Math.max(0, Math.floor((room.game.drawEndsAt - Date.now()) / 1000)),
-        mask: wordMask(room.game.word),
+        hintDisplay: buildWordHintDisplay(room.game.word, revealedLetters),
       });
-
-      if (room.game.hintReveal) {
-        socket.emit("hint-update", { reveal: room.game.hintReveal });
-      }
 
       if (drawer?.socketId === socket.id) {
         socket.emit("drawer-word", { word: room.game.word });
