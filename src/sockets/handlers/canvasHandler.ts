@@ -21,6 +21,7 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
     if (!room) return;
     room.game.drawingHistory = [];
     room.game.drawingEvents = [];
+    room.game.canvasBackground = undefined;
     io.to(roomId).emit("clear-canvas");
     io.to(roomId).emit("canvas-cleared");
   });
@@ -58,7 +59,11 @@ export default function registerCanvasHandlers(io: Server, socket: Socket) {
   });
 
   socket.on("fill-canvas", ({ roomId, color }) => {
-    if (!verifyDrawer(roomId)) return;
+    const room = verifyDrawer(roomId);
+    if (!room) return;
+    room.game.canvasBackground = color;
+    room.game.drawingHistory = [];
+    room.game.drawingEvents = [];
     io.to(roomId).emit("fill-canvas", { color });
   });
 

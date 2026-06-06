@@ -1,7 +1,11 @@
 import { Server, Socket } from "socket.io";
 import roomManager from "../../rooms/RoomManager";
 import gameManager from "../../game/GameManager";
-import { startChoosePhase } from "../utils/gameHelpers";
+import { startChoosePhase, clearHintTimers } from "../utils/gameHelpers";
+
+function wordMask(word: string) {
+  return word.split("").map((c) => (c === " " ? " " : "_")).join(" ");
+}
 
 export default function registerRoomHandlers(io: Server, socket: Socket) {
   // CREATE ROOM
@@ -27,6 +31,11 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
       return;
     }
 
+    if (result.previousSocketId) {
+      io.to(result.previousSocketId).emit("session-replaced");
+      io.sockets.sockets.get(result.previousSocketId)?.disconnect(true);
+    }
+
     socket.join(roomId);
     const room = result.room!;
 
@@ -47,18 +56,50 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     
     socket.emit("drawing-history", room.game.drawingHistory);
     socket.emit("canvas-sync", room.game.drawingEvents);
+
+    if (room.game.canvasBackground) {
+      socket.emit("fill-canvas", { color: room.game.canvasBackground });
+    }
+
     socket.emit("leaderboard-update", room.players
       .map(p => ({ id: p.id, name: p.name, score: p.score }))
       .sort((a, b) => b.score - a.score)
     );
 
     const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
-    socket.emit("drawer-update", { drawer: drawer?.name });
+    if (drawer?.name) {
+      socket.emit("drawer-update", { drawer: drawer.name });
+    }
 
-    if (room.game.phase === "DRAWING" && room.game.drawEndsAt) {
-      socket.emit("drawing-started", {
-        duration: Math.max(0, Math.floor((room.game.drawEndsAt - Date.now()) / 1000))
+    if (room.game.phase === "CHOOSING" && room.game.chooseEndsAt) {
+      socket.emit("choose-phase-started", {
+        drawer: drawer?.name ?? "",
+        round: room.game.currentRound,
+        time: Math.max(0, Math.floor((room.game.chooseEndsAt - Date.now()) / 1000)),
+        chooseEndsAt: room.game.chooseEndsAt,
       });
+
+      if (drawer?.socketId === socket.id && room.game.wordChoices.length > 0) {
+        socket.emit("choose-word", {
+          choices: room.game.wordChoices,
+          time: Math.max(0, Math.floor((room.game.chooseEndsAt - Date.now()) / 1000)),
+        });
+      }
+    }
+
+    if (room.game.phase === "DRAWING" && room.game.drawEndsAt && room.game.word) {
+      socket.emit("drawing-started", {
+        duration: Math.max(0, Math.floor((room.game.drawEndsAt - Date.now()) / 1000)),
+        mask: wordMask(room.game.word),
+      });
+
+      if (room.game.hintReveal) {
+        socket.emit("hint-update", { reveal: room.game.hintReveal });
+      }
+
+      if (drawer?.socketId === socket.id) {
+        socket.emit("drawer-word", { word: room.game.word });
+      }
     }
   });
 
@@ -73,7 +114,33 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     const room = result.room!;
     const targetSocket = result.target!.socketId;
 
-    if (targetSocket) io.to(targetSocket).emit("kicked");
+    if (targetSocket) {
+      io.to(targetSocket).emit("kicked");
+      io.sockets.sockets.get(targetSocket)?.leave(roomId);
+    }
+
+    if (
+      result.target!.id === room.game.currentDrawerId &&
+      room.game.started &&
+      (room.game.phase === "DRAWING" || room.game.phase === "CHOOSING")
+    ) {
+      clearTimeout(room.game.chooseTimer);
+      clearHintTimers(room);
+      clearTimeout(room.game.drawTimer);
+      io.to(room.roomId).emit("drawer-skipped");
+      room.game.phase = "RESULT";
+
+      room.game.resultTimer = setTimeout(() => {
+        gameManager.resetTurn(room);
+        const next = gameManager.nextDrawer(room);
+
+        if (next.gameEnded) {
+          io.to(room.roomId).emit("game-ended", { winner: next.winner, leaderboard: next.leaderboard });
+          return;
+        }
+        startChoosePhase(io, room, next);
+      }, 5000);
+    }
 
     io.to(roomId).emit("players-update", roomManager.getConnectedPlayers(roomId));
     io.to(roomId).emit("holder-update", room.holderId);
@@ -88,18 +155,19 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
 
     if (disconnected?.id === room.game.currentDrawerId && room.game.phase === "DRAWING") {
       clearTimeout(room.game.drawTimer);
+      clearHintTimers(room);
       io.to(room.roomId).emit("drawer-skipped");
       room.game.phase = "RESULT";
 
       room.game.resultTimer = setTimeout(() => {
         gameManager.resetTurn(room);
-        const result = gameManager.nextDrawer(room);
+        const next = gameManager.nextDrawer(room);
 
-        if (result.gameEnded) {
-          io.to(room.roomId).emit("game-ended", { winner: result.winner, leaderboard: result.leaderboard });
+        if (next.gameEnded) {
+          io.to(room.roomId).emit("game-ended", { winner: next.winner, leaderboard: next.leaderboard });
           return;
         }
-        startChoosePhase(io, room, result);
+        startChoosePhase(io, room, next);
       }, 5000);
     }
 

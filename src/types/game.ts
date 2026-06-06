@@ -42,6 +42,10 @@ export interface GameState {
   chooseTimer?: NodeJS.Timeout;
   drawTimer?: NodeJS.Timeout;
   resultTimer?: NodeJS.Timeout;
+  hintTimer1?: NodeJS.Timeout;
+  hintTimer2?: NodeJS.Timeout;
+  hintReveal?: string;
+  canvasBackground?: string;
 }
 export interface Stroke {
   id: string;

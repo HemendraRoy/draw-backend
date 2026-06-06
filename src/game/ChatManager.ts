@@ -9,7 +9,7 @@ class ChatManager {
   handleMessage(io: Server, room: Room, playerId: string, message: string) {
     // If the game hasn't started, pass everything through as a regular chat
     if (!room.game.started) {
-      return this.emitChatMessage(io, room.roomId, "chat", playerId, message);
+      return this.emitChatMessage(io, room.roomId, "chat", player.name, message);
     }
 
     const player = room.players.find(p => p.id === playerId);
@@ -53,9 +53,8 @@ class ChatManager {
     io.to(room.roomId).emit("leaderboard-update", leaderboard);
     this.emitChatMessage(io, room.roomId, "system", null, `${player.name} guessed the word!`);
 
-    // Check if turn needs to end early
+    // Signal early completion; turn end is handled by the game handler
     if (gameManager.isRoundCompleted(room)) {
-      clearTimeout(room.game.drawTimer);
       io.to(room.roomId).emit("all-players-guessed");
     }
   }

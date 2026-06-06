@@ -59,15 +59,23 @@ class RoomManager {
       if (existingPlayer.password !== password) {
         return { success: false, message: "User already present. Enter correct password or change name." };
       }
-      if (existingPlayer.connected) {
-        return { success: false, message: "User already present in game" };
-      }
+
+      const previousSocketId =
+        existingPlayer.connected && existingPlayer.socketId
+          ? existingPlayer.socketId
+          : undefined;
 
       existingPlayer.connected = true;
       existingPlayer.socketId = socketId;
       this.clearRoomExpiry(room);
 
-      return { success: true, room, player: existingPlayer, reconnect: true };
+      return {
+        success: true,
+        room,
+        player: existingPlayer,
+        reconnect: true,
+        previousSocketId,
+      };
     }
 
     const player = this.createPlayerInstance(name, password, socketId);

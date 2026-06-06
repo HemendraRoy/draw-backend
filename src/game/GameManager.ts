@@ -89,6 +89,10 @@ class GameManager {
     clearTimeout(room.game.chooseTimer);
     clearTimeout(room.game.drawTimer);
     clearTimeout(room.game.resultTimer);
+    clearTimeout(room.game.hintTimer1);
+    clearTimeout(room.game.hintTimer2);
+    room.game.hintTimer1 = undefined;
+    room.game.hintTimer2 = undefined;
 
     // Wipe turn states
     room.game.lastTurnScores = [];
@@ -97,6 +101,7 @@ class GameManager {
     room.game.word = null;
     room.game.wordChoices = [];
     room.game.guessedPlayers = [];
+    room.game.hintReveal = undefined;
       
     // Clear metadata timestamps
     room.game.chooseEndsAt = undefined;
