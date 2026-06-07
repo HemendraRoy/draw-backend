@@ -6,6 +6,7 @@ import {
   countWordLetters,
   pickRandomLetterIndices,
 } from "../../utils/wordHint";
+import { getDrawerPoints } from "../../utils/scoring";
 
 export function clearHintTimers(room: Room) {
   if (room.game.hintTimer1) clearTimeout(room.game.hintTimer1);
@@ -23,7 +24,7 @@ export function awardDrawerPoints(room: Room) {
   );
   if (alreadyScored) return;
 
-  const drawerPoints = room.game.guessedPlayers.length * 50;
+  const drawerPoints = getDrawerPoints(room);
   if (drawerPoints <= 0) return;
 
   drawer.score += drawerPoints;

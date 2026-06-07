@@ -1,9 +1,8 @@
 import { Server } from "socket.io";
 import { Room } from "../types/game";
 import { normalizeWord } from "../utils/normalizeWord";
+import { getGuesserPoints, getPlayerCount } from "../utils/scoring";
 import gameManager from "./GameManager";
-
-const POINTS = [100, 80, 60, 40];
 
 type SenderRole = "drawer" | "guessed" | "unguessed";
 
@@ -50,7 +49,7 @@ class ChatManager {
     room.game.guessedPlayers.push(playerId);
 
     const rank = room.game.guessedPlayers.length - 1;
-    const points = POINTS[rank] || 40;
+    const points = getGuesserPoints(rank, getPlayerCount(room));
     player.score += points;
 
     room.game.lastTurnScores.push({ playerId, points });
