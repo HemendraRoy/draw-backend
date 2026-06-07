@@ -60,8 +60,11 @@ class RoomManager {
         return { success: false, message: "User already present. Enter correct password or change name." };
       }
 
+      // Only evict another tab/device — same socket rejoining after leave is allowed
       const previousSocketId =
-        existingPlayer.connected && existingPlayer.socketId
+        existingPlayer.connected &&
+        existingPlayer.socketId &&
+        existingPlayer.socketId !== socketId
           ? existingPlayer.socketId
           : undefined;
 

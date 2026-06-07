@@ -25,7 +25,7 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
       return;
     }
 
-    if (result.previousSocketId) {
+    if (result.previousSocketId && result.previousSocketId !== socket.id) {
       io.to(result.previousSocketId).emit("session-replaced");
       io.sockets.sockets.get(result.previousSocketId)?.disconnect(true);
     }
@@ -136,19 +136,27 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
   });
 
   // LEAVE ROOM (explicit — e.g. user clicked Leave)
-  socket.on("leave-room", ({ roomId }) => {
+  socket.on("leave-room", ({ roomId }, ack?: () => void) => {
     const room = roomManager.getRoom(roomId);
-    if (!room) return;
+    if (!room) {
+      ack?.();
+      return;
+    }
 
     const player = room.players.find(p => p.socketId === socket.id);
-    if (!player) return;
+    if (!player) {
+      ack?.();
+      return;
+    }
 
     socket.leave(roomId);
     const updatedRoom = roomManager.leaveRoom(socket.id);
-    if (!updatedRoom) return;
+    if (updatedRoom) {
+      io.to(roomId).emit("players-update", roomManager.getConnectedPlayersPublic(roomId));
+      io.to(roomId).emit("holder-update", updatedRoom.holderId);
+    }
 
-    io.to(roomId).emit("players-update", roomManager.getConnectedPlayersPublic(roomId));
-    io.to(roomId).emit("holder-update", updatedRoom.holderId);
+    ack?.();
   });
 
   // DISCONNECT
