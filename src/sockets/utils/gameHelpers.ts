@@ -28,6 +28,7 @@ export function awardDrawerPoints(room: Room) {
 
 export function emitLeaderboard(io: Server, room: Room) {
   const leaderboard = room.players
+    .filter((p) => p.connected)
     .map((p) => ({ id: p.id, name: p.name, score: p.score }))
     .sort((a, b) => b.score - a.score);
 

@@ -122,16 +122,46 @@ class RoomManager {
     const target = room.players.find(p => p.name === targetName);
     if (!target) return { success: false, message: "Player not found" };
 
-    room.bannedPlayers.push(target.name);
-    target.connected = false;
+    const targetSocketId = target.socketId;
 
-    return { success: true, room, target };
+    if (!room.bannedPlayers.includes(target.name)) {
+      room.bannedPlayers.push(target.name);
+    }
+    target.connected = false;
+    target.socketId = null;
+
+    if (room.holderId === target.id) {
+      const connectedPlayers = room.players.filter(p => p.connected);
+      const oldest = [...connectedPlayers].sort((a, b) => a.joinedAt - b.joinedAt)[0];
+      room.holderId = oldest?.id || null;
+    }
+
+    return { success: true, room, target, targetSocketId };
+  }
+
+  leaveRoom(socketId: string) {
+    return this.disconnectPlayer(socketId);
   }
 
   // UTILITIES & VALIDATIONS
 
   getConnectedPlayers(roomId: string): Player[] {
     return this.rooms.get(roomId)?.players.filter(p => p.connected) || [];
+  }
+
+  getConnectedPlayersPublic(roomId: string) {
+    return this.getConnectedPlayers(roomId).map(p => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+      connected: true as const,
+    }));
+  }
+
+  getLeaderboard(roomId: string) {
+    return this.getConnectedPlayers(roomId)
+      .map(p => ({ id: p.id, name: p.name, score: p.score }))
+      .sort((a, b) => b.score - a.score);
   }
 
   isHolder(roomId: string, socketId: string): boolean {

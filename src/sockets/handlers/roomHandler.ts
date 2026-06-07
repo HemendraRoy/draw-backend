@@ -10,14 +10,11 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     const result = roomManager.createRoom(name, password, socket.id);
     socket.join(result.room.roomId);
 
-    io.to(result.room.roomId).emit("players-update", roomManager.getConnectedPlayers(result.room.roomId));
+    io.to(result.room.roomId).emit("players-update", roomManager.getConnectedPlayersPublic(result.room.roomId));
     io.to(result.room.roomId).emit("holder-update", result.room.holderId);
     
     socket.emit("room-created", { roomId: result.room.roomId, holder: true });
-    socket.emit("leaderboard-update", result.room.players
-      .map(p => ({ id: p.id, name: p.name, score: p.score }))
-      .sort((a, b) => b.score - a.score)
-    );
+    socket.emit("leaderboard-update", roomManager.getLeaderboard(result.room.roomId));
   });
 
   // JOIN ROOM
@@ -36,7 +33,7 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     socket.join(roomId);
     const room = result.room!;
 
-    io.to(roomId).emit("players-update", roomManager.getConnectedPlayers(roomId));
+    io.to(roomId).emit("players-update", roomManager.getConnectedPlayersPublic(roomId));
     io.to(roomId).emit("holder-update", room.holderId);
     socket.emit("room-joined", { roomId, reconnect: result.reconnect });
     
@@ -54,10 +51,7 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     socket.emit("drawing-history", room.game.drawingHistory);
     socket.emit("canvas-sync", room.game.drawingEvents);
 
-    socket.emit("leaderboard-update", room.players
-      .map(p => ({ id: p.id, name: p.name, score: p.score }))
-      .sort((a, b) => b.score - a.score)
-    );
+    socket.emit("leaderboard-update", roomManager.getLeaderboard(roomId));
 
     const drawer = room.players.find(p => p.id === room.game.currentDrawerId);
     if (drawer?.name) {
@@ -105,11 +99,13 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     }
 
     const room = result.room!;
-    const targetSocket = result.target!.socketId;
+    const targetSocket = result.targetSocketId;
 
     if (targetSocket) {
       io.to(targetSocket).emit("kicked");
-      io.sockets.sockets.get(targetSocket)?.leave(roomId);
+      const kickedSocket = io.sockets.sockets.get(targetSocket);
+      kickedSocket?.leave(roomId);
+      kickedSocket?.disconnect(true);
     }
 
     if (
@@ -135,8 +131,24 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
       }, 5000);
     }
 
-    io.to(roomId).emit("players-update", roomManager.getConnectedPlayers(roomId));
+    io.to(roomId).emit("players-update", roomManager.getConnectedPlayersPublic(roomId));
     io.to(roomId).emit("holder-update", room.holderId);
+  });
+
+  // LEAVE ROOM (explicit — e.g. user clicked Leave)
+  socket.on("leave-room", ({ roomId }) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    socket.leave(roomId);
+    const updatedRoom = roomManager.leaveRoom(socket.id);
+    if (!updatedRoom) return;
+
+    io.to(roomId).emit("players-update", roomManager.getConnectedPlayersPublic(roomId));
+    io.to(roomId).emit("holder-update", updatedRoom.holderId);
   });
 
   // DISCONNECT
@@ -164,7 +176,7 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
       }, 5000);
     }
 
-    io.to(room.roomId).emit("players-update", roomManager.getConnectedPlayers(room.roomId));
+    io.to(room.roomId).emit("players-update", roomManager.getConnectedPlayersPublic(room.roomId));
     io.to(room.roomId).emit("holder-update", room.holderId);
   });
 }

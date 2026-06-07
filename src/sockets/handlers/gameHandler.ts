@@ -69,9 +69,6 @@ export default function registerGameHandlers(io: Server, socket: Socket) {
     resetGameToLobby(room);
 
     io.to(roomId).emit("returned-to-lobby");
-    io.to(roomId).emit("leaderboard-update", room.players
-      .map((p) => ({ id: p.id, name: p.name, score: p.score }))
-      .sort((a, b) => b.score - a.score)
-    );
+    io.to(roomId).emit("leaderboard-update", roomManager.getLeaderboard(roomId));
   });
 }

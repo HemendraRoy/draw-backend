@@ -47,6 +47,7 @@ class ChatManager {
 
     // Generate and emit updated leaderboard
     const leaderboard = room.players
+      .filter(p => p.connected)
       .map(p => ({ id: p.id, name: p.name, score: p.score }))
       .sort((a, b) => b.score - a.score);
 
