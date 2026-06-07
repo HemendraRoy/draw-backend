@@ -1,6 +1,10 @@
 /** Build a spaced hint string; word spaces render as " / " between letter groups. */
-export function buildWordHintDisplay(word: string, revealedLetters: number): string {
-  let revealed = 0;
+export function buildWordHintDisplay(
+  word: string,
+  revealedLetterIndices: number[]
+): string {
+  const revealSet = new Set(revealedLetterIndices);
+  let letterIndex = 0;
   const parts: string[] = [];
 
   for (const char of word) {
@@ -9,12 +13,8 @@ export function buildWordHintDisplay(word: string, revealedLetters: number): str
       continue;
     }
 
-    if (revealed < revealedLetters) {
-      revealed += 1;
-      parts.push(char.toUpperCase());
-    } else {
-      parts.push("_");
-    }
+    parts.push(revealSet.has(letterIndex) ? char.toUpperCase() : "_");
+    letterIndex += 1;
   }
 
   return parts.join(" ");
@@ -22,4 +22,19 @@ export function buildWordHintDisplay(word: string, revealedLetters: number): str
 
 export function countWordLetters(word: string): number {
   return word.replace(/ /g, "").length;
+}
+
+/** Pick `count` random letter positions (0-based, spaces excluded). */
+export function pickRandomLetterIndices(word: string, count: number): number[] {
+  const indices = Array.from(
+    { length: countWordLetters(word) },
+    (_, i) => i
+  );
+
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  return indices.slice(0, count);
 }

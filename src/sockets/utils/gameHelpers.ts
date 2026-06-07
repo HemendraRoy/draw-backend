@@ -1,7 +1,11 @@
 import { Server } from "socket.io";
 import { Room } from "../../types/game";
 import gameManager from "../../game/GameManager";
-import { buildWordHintDisplay } from "../../utils/wordHint";
+import {
+  buildWordHintDisplay,
+  countWordLetters,
+  pickRandomLetterIndices,
+} from "../../utils/wordHint";
 
 export function clearHintTimers(room: Room) {
   if (room.game.hintTimer1) clearTimeout(room.game.hintTimer1);
@@ -37,7 +41,9 @@ export function emitLeaderboard(io: Server, room: Room) {
 
 export function startDrawingPhase(io: Server, room: Room) {
   const word = room.game.word || "";
-  room.game.hintReveal = "0";
+  const hintSlots = Math.min(2, countWordLetters(word));
+  room.game.hintRevealIndices = pickRandomLetterIndices(word, hintSlots);
+  room.game.hintRevealCount = 0;
 
   const drawer = room.players.find((p) => p.id === room.game.currentDrawerId);
   if (drawer?.socketId) {
@@ -46,7 +52,7 @@ export function startDrawingPhase(io: Server, room: Room) {
 
   io.to(room.roomId).emit("drawing-started", {
     duration: 75,
-    hintDisplay: buildWordHintDisplay(word, 0),
+    hintDisplay: buildWordHintDisplay(word, []),
   });
 
   startDrawTimer(io, room);
@@ -125,19 +131,21 @@ export function startDrawTimer(io: Server, room: Room) {
   const word = room.game.word || "";
 
   room.game.hintTimer1 = setTimeout(() => {
-    if (room.game.phase === "DRAWING") {
-      room.game.hintReveal = "1";
+    if (room.game.phase === "DRAWING" && room.game.hintRevealIndices?.length) {
+      room.game.hintRevealCount = 1;
+      const revealed = room.game.hintRevealIndices.slice(0, 1);
       io.to(room.roomId).emit("hint-update", {
-        hintDisplay: buildWordHintDisplay(word, 1),
+        hintDisplay: buildWordHintDisplay(word, revealed),
       });
     }
   }, 25000);
 
   room.game.hintTimer2 = setTimeout(() => {
-    if (room.game.phase === "DRAWING") {
-      room.game.hintReveal = "2";
+    if (room.game.phase === "DRAWING" && room.game.hintRevealIndices?.length) {
+      room.game.hintRevealCount = Math.min(2, room.game.hintRevealIndices.length);
+      const revealed = room.game.hintRevealIndices.slice(0, room.game.hintRevealCount);
       io.to(room.roomId).emit("hint-update", {
-        hintDisplay: buildWordHintDisplay(word, 2),
+        hintDisplay: buildWordHintDisplay(word, revealed),
       });
     }
   }, 50000);
@@ -171,5 +179,6 @@ export function resetGameToLobby(room: Room) {
   room.game.chooseEndsAt = undefined;
   room.game.drawEndsAt = undefined;
   room.game.resultEndsAt = undefined;
-  room.game.hintReveal = undefined;
+  room.game.hintRevealIndices = undefined;
+  room.game.hintRevealCount = undefined;
 }

@@ -75,13 +75,13 @@ export default function registerRoomHandlers(io: Server, socket: Socket) {
     }
 
     if (room.game.phase === "DRAWING" && room.game.drawEndsAt && room.game.word) {
-      const revealedLetters = room.game.hintReveal
-        ? parseInt(room.game.hintReveal, 10) || 0
-        : 0;
+      const revealedCount = room.game.hintRevealCount ?? 0;
+      const revealedIndices =
+        room.game.hintRevealIndices?.slice(0, revealedCount) ?? [];
 
       socket.emit("drawing-started", {
         duration: Math.max(0, Math.floor((room.game.drawEndsAt - Date.now()) / 1000)),
-        hintDisplay: buildWordHintDisplay(room.game.word, revealedLetters),
+        hintDisplay: buildWordHintDisplay(room.game.word, revealedIndices),
       });
 
       if (drawer?.socketId === socket.id) {

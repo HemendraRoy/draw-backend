@@ -101,7 +101,8 @@ class GameManager {
     room.game.word = null;
     room.game.wordChoices = [];
     room.game.guessedPlayers = [];
-    room.game.hintReveal = undefined;
+    room.game.hintRevealIndices = undefined;
+    room.game.hintRevealCount = undefined;
       
     // Clear metadata timestamps
     room.game.chooseEndsAt = undefined;

@@ -44,7 +44,8 @@ export interface GameState {
   resultTimer?: NodeJS.Timeout;
   hintTimer1?: NodeJS.Timeout;
   hintTimer2?: NodeJS.Timeout;
-  hintReveal?: string;
+  hintRevealIndices?: number[];
+  hintRevealCount?: number;
 }
 export interface Stroke {
   id: string;
