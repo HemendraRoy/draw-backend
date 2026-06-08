@@ -1,26 +1,43 @@
 import { Room } from "../types/game";
+import { countWordLetters } from "./wordHint";
 
-export function getPlayerCount(room: Room): number {
-  return room.players.length;
+const CHAT_COOLDOWN_MS = 800;
+
+/** Connected players who can guess (excludes drawer and offline/kicked players). */
+export function getConnectedGuessers(room: Room) {
+  return room.players.filter(
+    (p) => p.connected && p.id !== room.game.currentDrawerId
+  );
 }
 
-function guessersInRoom(room: Room): number {
-  return Math.max(0, getPlayerCount(room) - 1);
+export function getDrawTimeRemainingSeconds(room: Room): number {
+  if (!room.game.drawEndsAt) return 0;
+  return Math.max(0, Math.ceil((room.game.drawEndsAt - Date.now()) / 1000));
 }
 
-/** First guesser: 60×N, then −5×N per rank; minimum 40 points. */
-export function getGuesserPoints(rank: number, totalPlayers: number): number {
-  const multiplier = Math.max(0, 60 - rank * 5);
-  const raw = multiplier * Math.max(0, totalPlayers);
-  return Math.max(40, raw);
+export function isEasyWord(word: string): boolean {
+  return countWordLetters(word) <= 5;
 }
 
-/** Drawer earns 160 × (fraction of guessers who got it right). */
+/** Easy (≤5 letters): (time left + 25) × 3. Hard (>5 letters): (time left + 25) × 4. */
+export function getGuesserPoints(room: Room, word: string): number {
+  const timeRemaining = getDrawTimeRemainingSeconds(room);
+  const multiplier = isEasyWord(word) ? 3 : 4;
+  return (timeRemaining + 25) * multiplier;
+}
+
+/** Drawer earns 120 × fraction of connected guessers who got it right. */
 export function getDrawerPoints(room: Room): number {
-  const guessers = guessersInRoom(room);
-  if (guessers === 0) return 0;
+  const guessers = getConnectedGuessers(room);
+  if (guessers.length === 0) return 0;
 
-  const guessedCount = room.game.guessedPlayers.length;
-  const fraction = guessedCount / guessers;
-  return Math.max(0, Math.round(160 * fraction));
+  const guesserIds = new Set(guessers.map((p) => p.id));
+  const guessedCount = room.game.guessedPlayers.filter((id) =>
+    guesserIds.has(id)
+  ).length;
+
+  const fraction = guessedCount / guessers.length;
+  return Math.max(0, Math.round(120 * fraction));
 }
+
+export { CHAT_COOLDOWN_MS };

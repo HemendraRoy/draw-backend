@@ -1,17 +1,33 @@
 import { Server } from "socket.io";
 import { Room } from "../types/game";
 import { normalizeWord } from "../utils/normalizeWord";
-import { getGuesserPoints, getPlayerCount } from "../utils/scoring";
+import { CHAT_COOLDOWN_MS, getGuesserPoints } from "../utils/scoring";
 import gameManager from "./GameManager";
 
 type SenderRole = "drawer" | "guessed" | "unguessed";
 
 class ChatManager {
+  private lastChatAt = new Map<string, number>();
+
+  private chatKey(roomId: string, playerId: string) {
+    return `${roomId}:${playerId}`;
+  }
+
+  private isRateLimited(roomId: string, playerId: string): boolean {
+    const key = this.chatKey(roomId, playerId);
+    const now = Date.now();
+    const last = this.lastChatAt.get(key) ?? 0;
+    if (now - last < CHAT_COOLDOWN_MS) return true;
+    this.lastChatAt.set(key, now);
+    return false;
+  }
+
   handleMessage(io: Server, room: Room, playerId: string, message: string) {
     const player = room.players.find((p) => p.id === playerId);
     if (!player) return;
 
     if (!room.game.started) {
+      if (this.isRateLimited(room.roomId, playerId)) return;
       return this.emitChatMessage(io, room, "chat", player.name, message);
     }
 
@@ -27,9 +43,12 @@ class ChatManager {
       normalizedGuess === normalizedTarget;
 
     if (isCorrectGuess) {
+      this.lastChatAt.set(this.chatKey(room.roomId, playerId), Date.now());
       this.processCorrectGuess(io, room, player, playerId);
       return;
     }
+
+    if (this.isRateLimited(room.roomId, playerId)) return;
 
     const senderRole: SenderRole = isDrawer
       ? "drawer"
@@ -48,8 +67,8 @@ class ChatManager {
   ) {
     room.game.guessedPlayers.push(playerId);
 
-    const rank = room.game.guessedPlayers.length - 1;
-    const points = getGuesserPoints(rank, getPlayerCount(room));
+    const word = room.game.word || "";
+    const points = getGuesserPoints(room, word);
     player.score += points;
 
     room.game.lastTurnScores.push({ playerId, points });

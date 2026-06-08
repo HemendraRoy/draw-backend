@@ -7,11 +7,28 @@ const normalizeWord_1 = require("../utils/normalizeWord");
 const scoring_1 = require("../utils/scoring");
 const GameManager_1 = __importDefault(require("./GameManager"));
 class ChatManager {
+    constructor() {
+        this.lastChatAt = new Map();
+    }
+    chatKey(roomId, playerId) {
+        return `${roomId}:${playerId}`;
+    }
+    isRateLimited(roomId, playerId) {
+        const key = this.chatKey(roomId, playerId);
+        const now = Date.now();
+        const last = this.lastChatAt.get(key) ?? 0;
+        if (now - last < scoring_1.CHAT_COOLDOWN_MS)
+            return true;
+        this.lastChatAt.set(key, now);
+        return false;
+    }
     handleMessage(io, room, playerId, message) {
         const player = room.players.find((p) => p.id === playerId);
         if (!player)
             return;
         if (!room.game.started) {
+            if (this.isRateLimited(room.roomId, playerId))
+                return;
             return this.emitChatMessage(io, room, "chat", player.name, message);
         }
         const isDrawer = room.game.currentDrawerId === playerId;
@@ -23,9 +40,12 @@ class ChatManager {
             normalizedTarget &&
             normalizedGuess === normalizedTarget;
         if (isCorrectGuess) {
+            this.lastChatAt.set(this.chatKey(room.roomId, playerId), Date.now());
             this.processCorrectGuess(io, room, player, playerId);
             return;
         }
+        if (this.isRateLimited(room.roomId, playerId))
+            return;
         const senderRole = isDrawer
             ? "drawer"
             : alreadyGuessed
@@ -35,8 +55,8 @@ class ChatManager {
     }
     processCorrectGuess(io, room, player, playerId) {
         room.game.guessedPlayers.push(playerId);
-        const rank = room.game.guessedPlayers.length - 1;
-        const points = (0, scoring_1.getGuesserPoints)(rank, (0, scoring_1.getPlayerCount)(room));
+        const word = room.game.word || "";
+        const points = (0, scoring_1.getGuesserPoints)(room, word);
         player.score += points;
         room.game.lastTurnScores.push({ playerId, points });
         const leaderboard = room.players
